@@ -7,6 +7,7 @@
 #include <vector>
 #include <chrono>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
@@ -216,26 +217,14 @@ static int checkclearLines(Game& g) {
 
 // Heuristic scoring: more is better for the player, opposite of prev one
 static int evaluateBoard2(const Game& g) {
-    // int holes = 0, height = 0;
 
-    // Count holes and max height
-    // for (int c = 0; c < COLS; c++) {
-    //     bool blockSeen = false;
-    //     for (int r = 0; r < ROWS; r++) {
-    //         if (g.board[r][c] != 0) {
-    //             blockSeen = true;
-    //             height = max(height, ROWS - r);
-    //         } else if (blockSeen) {
-    //             holes++; // empty below a block = hole
-    //         }
-    //     }
-    // }
     Game gtemp = g;
     return checkclearLines(gtemp);
 }
 
-static Piece worstPiece(const Game& g) {
+static Piece worstPiece(const Game& g, mt19937& rng) {
     Piece worst{};
+    vector<Piece> worstCandidates;
     int worstScore = -1;
     int bestScore = INT8_MAX;
 
@@ -268,18 +257,31 @@ static Piece worstPiece(const Game& g) {
 
                 // in favour of the player
                 int score = evaluateBoard2(test);
-
+                cout << "lines " << score << endl;
                 if (score > worstScore) {
                     worstScore = score;
-                    worst = candidate;
+                    worstCandidates.clear();
+                    candidate.rotation = 0;
+                    candidate.x = COLS / 2 - 2;
+                    candidate.y = -2;
+                    worstCandidates.push_back(candidate);
+                } else if (score == worstScore) {
+                    candidate.rotation = 0;
+                    candidate.x = COLS / 2 - 2;
+                    candidate.y = -2;
+                    if (worstCandidates[worstCandidates.size()-1].type != candidate.type){
+                        worstCandidates.push_back(candidate);
+                    }
                 }
             }
         }
     }
-    cout << "choose " << worst.type << " with score " << worstScore << endl;
-    worst.rotation = 0;
-    worst.x = COLS / 2 - 2;
-    worst.y = -2;
+    for (int can;can<worstCandidates.size();can++){
+        cout << "choose " << worstCandidates[can].type << " with score " << worstScore << endl;
+    }
+    cout << "end" << endl;
+    uniform_int_distribution<int> dist(0, int(worstCandidates.size()) - 1);
+    return worstCandidates[dist(rng)];
     return worst;
 }
 
@@ -339,7 +341,7 @@ int main() {
                         while (moveIf(game, 0, +1)) {}
                         lockPiece(game);
                         clearLines(game);
-                        game.cur = worstPiece(game);
+                        game.cur = worstPiece(game, rng);
                         if (!canPlace(game, game.cur)) game.gameOver = true;
                         dropTimer = 0.f;
                     }
@@ -370,7 +372,7 @@ int main() {
             if (!moveIf(game, 0, +1)) {
                 lockPiece(game);
                 clearLines(game);
-                game.cur = worstPiece(game);
+                game.cur = worstPiece(game, rng);
                 if (!canPlace(game, game.cur)) game.gameOver = true;
             }
         }
