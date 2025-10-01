@@ -186,7 +186,7 @@ static bool moveIf(Game& g, int dx, int dy) {
     return false;
 }
 
-#include <iomanip>  // for setw
+#include <iomanip> 
 
 static void printBoard(const Game& g) {
     cout << "\n=== TETRIS BOARD ===\n";
@@ -257,16 +257,16 @@ static int evaluateBoard(const Game& g) {
     return lines*4 - deltaheight - deltaholes*2;
 }
 
-static Piece bestPiece(const Game& g, mt19937& rng) {
-    Piece worst{};
-    vector<Piece> worstCandidates;
-    int can,bestScore = -100;
-    // int bestScore = INT8_MAX;
-    Piece candidate,c_candidate, bp;
-    // Try all 7 shapes
+static Piece worstPiece(const Game& g, mt19937& rng) {
+    vector<pair<int,int>> shapeBestScores; 
+    // (shape type, bestScore)
+
+    // Evaluate each shape type
     for (int t = 0; t < 7; t++) {
+        int bestScoreForShape = -10000;
+        Piece candidate;
+
         for (int rot = 0; rot < 4; rot++) {
-            
             candidate.type = t;
             candidate.rotation = rot;
 
@@ -281,55 +281,54 @@ static Piece bestPiece(const Game& g, mt19937& rng) {
 
                 if (!canPlace(g, candidate)) continue;
 
-                // Copy board and lock piece
                 Game test = g;
                 test.cur = candidate;
                 lockPiece(test);
-                //clearLines(test);
-                // printBoard(test);
-                
-                // in favour of the player
+
                 int score = evaluateBoard(test);
-                // 
-                if (score > bestScore) {
-                    bestScore = score;
-                    worstCandidates.clear();
-                    c_candidate = candidate;
-                    c_candidate.rotation = 0;
-                    c_candidate.x = COLS / 2 - 2;
-                    c_candidate.y = -2;
-                    worstCandidates.push_back(c_candidate);
-                } else if (score == bestScore) {
-                    c_candidate = candidate;
-                    c_candidate.rotation = 0;
-                    c_candidate.x = COLS / 2 - 2;
-                    c_candidate.y = -2;
-                    if (worstCandidates[worstCandidates.size()-1].type != c_candidate.type){
-                        worstCandidates.push_back(c_candidate);
-                    }
-                }
+                bestScoreForShape = max(bestScoreForShape, score);
+            }
+        }
+
+        shapeBestScores.push_back({t, bestScoreForShape});
+    }
+
+    // Find shape with the lowest "best score"
+    int worstShape = shapeBestScores[0].first;
+    int worstScore = shapeBestScores[0].second;
+    int worstShape2 = shapeBestScores[0].first;
+    int worstScore2 = shapeBestScores[0].second;
+    for (auto [shape, score] : shapeBestScores) {
+        if (score < worstScore) {
+            worstShape2 = worstShape;
+            worstScore2 = worstScore;
+            worstShape = shape;
+            worstScore = score;
+        }
+    }
+
+    // Create and return the piece at spawn position
+    Piece result{};
+    result.type = worstShape;
+    result.rotation = 0;
+    result.x = COLS / 2 - 2;
+    result.y = -2;
+    q.push_front(result.type);
+    if (q.size() > 3){
+        q.pop_back();
+        if (q[0]==q[1] and q[1]==q[2]){
+            if (worstShape2 == worstShape){
+                result = randomPiece(rng);
+            }
+            else{
+                result.type = worstShape2;
+                result.rotation = 0;
+                result.x = COLS / 2 - 2;
+                result.y = -2;
             }
         }
     }
-    // cout << "worstcandidate size:" << worstCandidates.size() << endl;
-    // for (int can=0;can<worstCandidates.size();can++){
-    //     cout << "choose " << worstCandidates[can].type << " with score " << bestScore << endl;
-    // }
-    // cout << "end" << endl;
-    uniform_int_distribution<int> dist(0, int(worstCandidates.size()) - 1);
-    bp = worstCandidates[dist(rng)];
-    q.push_front(bp.type);
-    if (q.size() > 3){
-        q.pop_back();
-        // std::cout << "Queue: ";
-        // for (int x : q) std::cout << x << " ";
-        // std::cout << "\n";
-        if (q[0]==q[1] and q[1]==q[2]){
-            bp = randomPiece(rng);
-            // cout << "3 times same piece, random initializing :" << bp.type << endl;
-        }
-    }
-    return bp;
+    return result;
 }
 
 
@@ -388,7 +387,7 @@ int main() {
                         while (moveIf(game, 0, +1)) {}
                         lockPiece(game);
                         clearLines(game);
-                        game.cur = bestPiece(game, rng);
+                        game.cur = worstPiece(game, rng);
                         if (!canPlace(game, game.cur)) game.gameOver = true;
                         dropTimer = 0.f;
                     }
@@ -419,7 +418,7 @@ int main() {
             if (!moveIf(game, 0, +1)) {
                 lockPiece(game);
                 clearLines(game);
-                game.cur = bestPiece(game, rng);
+                game.cur = worstPiece(game, rng);
                 if (!canPlace(game, game.cur)) game.gameOver = true;
             }
         }
