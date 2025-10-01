@@ -201,6 +201,19 @@ static int evaluateBoard(const Game& g) {
     }
     return height * 5 + holes * 10; // weighted score
 }
+
+#include <iomanip>  // for setw
+
+static void printBoard(const Game& g) {
+    cout << "\n=== TETRIS BOARD ===\n";
+    for (int r = 0; r < ROWS; r++) {
+        for (int c = 0; c < COLS; c++) {
+            cout << setw(2) << g.board[r][c] << " ";
+        }
+        cout << "\n";
+    }
+    cout << "====================\n";
+}
 // return no of lines(rows) that can be cleared
 static int checkclearLines(Game& g) {
     int lines = 0;
@@ -222,21 +235,21 @@ static int evaluateBoard2(const Game& g) {
     return checkclearLines(gtemp);
 }
 
-static Piece worstPiece(const Game& g, mt19937& rng) {
+static Piece bestPiece(const Game& g, mt19937& rng) {
     Piece worst{};
     vector<Piece> worstCandidates;
-    int worstScore = -1;
-    int bestScore = INT8_MAX;
-
+    int can,bestScore = -1;
+    // int bestScore = INT8_MAX;
+    Piece candidate,c_candidate;
     // Try all 7 shapes
     for (int t = 0; t < 7; t++) {
         for (int rot = 0; rot < 4; rot++) {
-            Piece candidate;
+            
             candidate.type = t;
             candidate.rotation = rot;
 
             // Try all x positions
-            for (int x = -2; x < COLS; x++) {
+            for (int x = -2; x < COLS+2; x++) {
                 candidate.x = x;
                 candidate.y = -2;
 
@@ -255,29 +268,34 @@ static Piece worstPiece(const Game& g, mt19937& rng) {
                 // returning hueristics that are not in favour of the player
                 // int score = evaluateBoard(test);
 
+                // printBoard(test);
+                
                 // in favour of the player
                 int score = evaluateBoard2(test);
-                cout << "lines " << score << endl;
-                if (score > worstScore) {
-                    worstScore = score;
+                // 
+                if (score > bestScore) {
+                    bestScore = score;
                     worstCandidates.clear();
-                    candidate.rotation = 0;
-                    candidate.x = COLS / 2 - 2;
-                    candidate.y = -2;
-                    worstCandidates.push_back(candidate);
-                } else if (score == worstScore) {
-                    candidate.rotation = 0;
-                    candidate.x = COLS / 2 - 2;
-                    candidate.y = -2;
-                    if (worstCandidates[worstCandidates.size()-1].type != candidate.type){
-                        worstCandidates.push_back(candidate);
+                    c_candidate = candidate;
+                    c_candidate.rotation = 0;
+                    c_candidate.x = COLS / 2 - 2;
+                    c_candidate.y = -2;
+                    worstCandidates.push_back(c_candidate);
+                } else if (score == bestScore) {
+                    c_candidate = candidate;
+                    c_candidate.rotation = 0;
+                    c_candidate.x = COLS / 2 - 2;
+                    c_candidate.y = -2;
+                    if (worstCandidates[worstCandidates.size()-1].type != c_candidate.type){
+                        worstCandidates.push_back(c_candidate);
                     }
                 }
             }
         }
     }
-    for (int can;can<worstCandidates.size();can++){
-        cout << "choose " << worstCandidates[can].type << " with score " << worstScore << endl;
+    cout << "worstcandidate size:" << worstCandidates.size() << endl;
+    for (int can=0;can<worstCandidates.size();can++){
+        cout << "choose " << worstCandidates[can].type << " with score " << bestScore << endl;
     }
     cout << "end" << endl;
     uniform_int_distribution<int> dist(0, int(worstCandidates.size()) - 1);
@@ -341,7 +359,7 @@ int main() {
                         while (moveIf(game, 0, +1)) {}
                         lockPiece(game);
                         clearLines(game);
-                        game.cur = worstPiece(game, rng);
+                        game.cur = bestPiece(game, rng);
                         if (!canPlace(game, game.cur)) game.gameOver = true;
                         dropTimer = 0.f;
                     }
@@ -372,7 +390,7 @@ int main() {
             if (!moveIf(game, 0, +1)) {
                 lockPiece(game);
                 clearLines(game);
-                game.cur = worstPiece(game, rng);
+                game.cur = bestPiece(game, rng);
                 if (!canPlace(game, game.cur)) game.gameOver = true;
             }
         }
