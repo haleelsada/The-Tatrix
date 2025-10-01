@@ -313,15 +313,24 @@ static Piece worstPiece(const Game& g, mt19937& rng) {
     result.rotation = 0;
     result.x = COLS / 2 - 2;
     result.y = -2;
+
     q.push_front(result.type);
     if (q.size() > 3){
         q.pop_back();
-        if (q[0]==q[1] and q[1]==q[2]){
-            if (worstShape2 == worstShape){
+        // cout << q[0] << q[1] << q[2] << endl;
+        // cout << worstShape << worstShape2 << endl;
+        if ((q[0]==q[1] and q[1]==q[2]) or q[0]==q[2]){
+            if (worstShape2 == worstShape or worstShape2 == q[1] or worstShape2 == q[2]){
+                // cout << "random shape generating" << endl;
                 result = randomPiece(rng);
+                q.push_front(result.type);
+                q.pop_back();
             }
             else{
+                // cout << "next shape choosing" << endl;
                 result.type = worstShape2;
+                q.push_front(result.type);
+                q.pop_back();
                 result.rotation = 0;
                 result.x = COLS / 2 - 2;
                 result.y = -2;
@@ -348,7 +357,7 @@ int main() {
 
     // Font (SFML 3 uses openFromFile)
     sf::Font font;
-    bool haveFont = font.openFromFile("/home/haleelsada/Downloads/IITD/COURSE/AI/tetris/DejaVuSerifCondensed-BoldItalic.ttf"); // change path as needed
+    bool haveFont = font.openFromFile("/home/haleelsada/Downloads/IITD/COURSE/AI/tetris/DejaVuSerif-Bold.ttf"); // change path as needed
 
     // Pre-create texts (SFML 3 removed default ctor for sf::Text)
     sf::Text scoreText(font, "", 18);

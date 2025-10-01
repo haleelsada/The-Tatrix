@@ -326,6 +326,7 @@ static Piece bestPiece(const Game& g, mt19937& rng) {
         // std::cout << "\n";
         if (q[0]==q[1] and q[1]==q[2]){
             bp = randomPiece(rng);
+            q[0]=bp.type;
             // cout << "3 times same piece, random initializing :" << bp.type << endl;
         }
     }
@@ -349,7 +350,7 @@ int main() {
 
     // Font (SFML 3 uses openFromFile)
     sf::Font font;
-    bool haveFont = font.openFromFile("/home/haleelsada/Downloads/IITD/COURSE/AI/tetris/DejaVuSerifCondensed-BoldItalic.ttf"); // change path as needed
+    bool haveFont = font.openFromFile("/home/haleelsada/Downloads/IITD/COURSE/AI/tetris/DejaVuSerif-Bold.ttf"); // change path as needed
 
     // Pre-create texts (SFML 3 removed default ctor for sf::Text)
     sf::Text scoreText(font, "", 18);
