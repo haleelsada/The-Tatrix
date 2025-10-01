@@ -183,25 +183,6 @@ static bool moveIf(Game& g, int dx, int dy) {
     return false;
 }
 
-// Heuristic scoring: lower is better for the player, higher is worse
-static int evaluateBoard(const Game& g) {
-    int holes = 0, height = 0;
-
-    // Count holes and max height
-    for (int c = 0; c < COLS; c++) {
-        bool blockSeen = false;
-        for (int r = 0; r < ROWS; r++) {
-            if (g.board[r][c] != 0) {
-                blockSeen = true;
-                height = max(height, ROWS - r);
-            } else if (blockSeen) {
-                holes++; // empty below a block = hole
-            }
-        }
-    }
-    return height * 5 + holes * 10; // weighted score
-}
-
 #include <iomanip>  // for setw
 
 static void printBoard(const Game& g) {
@@ -229,16 +210,54 @@ static int checkclearLines(Game& g) {
 }
 
 // Heuristic scoring: more is better for the player, opposite of prev one
-static int evaluateBoard2(const Game& g) {
+static int evaluateBoard(const Game& g) {
+    int holes_before = 0, height_before = 0,holes_after = 0, height_after = 0, lines = 0, deltaholes, deltaheight;
 
+    // Count holes and max height after piece input
+    for (int c = 0; c < COLS; c++) {
+        bool blockSeen = false;
+        for (int r = 0; r < ROWS; r++) {
+            if (g.board[r][c] != 0) {
+                blockSeen = true;
+                height_after = max(height_after, ROWS - r);
+            } else if (blockSeen) {
+                holes_after++; // empty below a block = hole
+            }
+        }
+    }
+    Game before = g;
+    // Remove current piece’s blocks temporarily to get "before" state
+    for (auto c : cellsFor(before.cur)) {
+        if (c.y >= 0 && c.y < ROWS && before.board[c.y][c.x] == before.cur.type + 1) {
+            before.board[c.y][c.x] = 0;
+        }
+    }
+    
+    for (int c = 0; c < COLS; c++) {
+        bool blockSeen = false;
+        for (int r = 0; r < ROWS; r++) {
+            if (before.board[r][c] != 0) {
+                blockSeen = true;
+                height_before = max(height_before, ROWS - r);
+            } else if (blockSeen) {
+                holes_before++; // empty below a block = hole
+            }
+        }
+    }
     Game gtemp = g;
-    return checkclearLines(gtemp);
+    lines = checkclearLines(gtemp);
+    
+    deltaheight = height_after-height_before;
+    deltaholes = holes_after-holes_before;
+    // cout << "hueristics" << endl;
+    // cout << "lines:" << lines << " extra holes:" << deltaholes << " extra height:" << deltaheight << endl;
+    return lines*4 - deltaheight - deltaholes*2;
 }
 
 static Piece bestPiece(const Game& g, mt19937& rng) {
     Piece worst{};
     vector<Piece> worstCandidates;
-    int can,bestScore = -1;
+    int can,bestScore = -100;
     // int bestScore = INT8_MAX;
     Piece candidate,c_candidate;
     // Try all 7 shapes
@@ -264,14 +283,10 @@ static Piece bestPiece(const Game& g, mt19937& rng) {
                 test.cur = candidate;
                 lockPiece(test);
                 //clearLines(test);
-
-                // returning hueristics that are not in favour of the player
-                // int score = evaluateBoard(test);
-
                 // printBoard(test);
                 
                 // in favour of the player
-                int score = evaluateBoard2(test);
+                int score = evaluateBoard(test);
                 // 
                 if (score > bestScore) {
                     bestScore = score;
@@ -293,11 +308,11 @@ static Piece bestPiece(const Game& g, mt19937& rng) {
             }
         }
     }
-    cout << "worstcandidate size:" << worstCandidates.size() << endl;
-    for (int can=0;can<worstCandidates.size();can++){
-        cout << "choose " << worstCandidates[can].type << " with score " << bestScore << endl;
-    }
-    cout << "end" << endl;
+    // cout << "worstcandidate size:" << worstCandidates.size() << endl;
+    // for (int can=0;can<worstCandidates.size();can++){
+    //     cout << "choose " << worstCandidates[can].type << " with score " << bestScore << endl;
+    // }
+    // cout << "end" << endl;
     uniform_int_distribution<int> dist(0, int(worstCandidates.size()) - 1);
     return worstCandidates[dist(rng)];
     return worst;
@@ -383,7 +398,7 @@ int main() {
         }
 
         // Gravity with simple speedup
-        dropInterval = max(0.4f, 0.6f - float(game.score) * 0.0005f);
+        dropInterval = max(0.25f, 0.6f - float(game.score) * 0.0005f);
         // going down one row and checking if game over
         if (!game.gameOver && dropTimer >= dropInterval) {
             dropTimer = 0.f;
