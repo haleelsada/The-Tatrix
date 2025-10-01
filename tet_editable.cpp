@@ -8,6 +8,7 @@
 #include <chrono>
 #include <iostream>
 #include <algorithm>
+#include <deque>
 
 using namespace std;
 
@@ -19,6 +20,8 @@ static constexpr int TILE = 32;
 static constexpr int BORDER = 4;
 static constexpr int WIDTH  = COLS * TILE + BORDER * 2;
 static constexpr int HEIGHT = ROWS * TILE + BORDER * 2;
+// to make sure same piece is not returned everytime by hueristic
+deque<int> q;
 
 // 7 Tetrominoes, each with 4 rotation states; encoded as 4x4 mini-grids flattened
 // ie, each inner array represent one shape, with each item representing 4 orientations
@@ -259,7 +262,7 @@ static Piece bestPiece(const Game& g, mt19937& rng) {
     vector<Piece> worstCandidates;
     int can,bestScore = -100;
     // int bestScore = INT8_MAX;
-    Piece candidate,c_candidate;
+    Piece candidate,c_candidate, bp;
     // Try all 7 shapes
     for (int t = 0; t < 7; t++) {
         for (int rot = 0; rot < 4; rot++) {
@@ -314,8 +317,19 @@ static Piece bestPiece(const Game& g, mt19937& rng) {
     // }
     // cout << "end" << endl;
     uniform_int_distribution<int> dist(0, int(worstCandidates.size()) - 1);
-    return worstCandidates[dist(rng)];
-    return worst;
+    bp = worstCandidates[dist(rng)];
+    q.push_front(bp.type);
+    if (q.size() > 3){
+        q.pop_back();
+        // std::cout << "Queue: ";
+        // for (int x : q) std::cout << x << " ";
+        // std::cout << "\n";
+        if (q[0]==q[1] and q[1]==q[2]){
+            bp = randomPiece(rng);
+            // cout << "3 times same piece, random initializing :" << bp.type << endl;
+        }
+    }
+    return bp;
 }
 
 
